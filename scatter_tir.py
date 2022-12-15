@@ -11,12 +11,11 @@ import onnx
 # from tvm import relay
 
 @tvm.script.ir_module
-class MyModule:
+class ModuleLLVM:
     @T.prim_func
     def scatter(pillar_features: T.Buffer[(40000, 1, 32), "float32"],
                 coords: T.Buffer[(40000, 3), "int32"],
                 spatial_features: T.Buffer[(1, 32, 560, 560), "float32"]):
-        # coord = T.alloc_buffer([3], "int32")
         T.func_attr({"global_symbol": "scatter", "tir.noalias": True})
         for i, j, k in T.grid(32, 560, 560):
             with T.block("spatial_features"):
@@ -27,6 +26,26 @@ class MyModule:
                 vi, vj = T.axis.remap("SS", [i, j])
                 if(coords[vi,0] >= 0):
                     spatial_features[0, vj, coords[vi,1], coords[vi,2]] = pillar_features[vi, 0, vj]
+
+@tvm.script.ir_module
+class ModuleGPU:
+    @T.prim_func
+    def scatter(pillar_features: T.Buffer[(40000, 1, 32), "float32"],
+                coords: T.Buffer[(40000, 3), "int32"],
+                spatial_features: T.Buffer[(1, 32, 560, 560), "float32"]):
+        T.func_attr({"global_symbol": "scatter", "tir.noalias": True})
+        for j in T.thread_binding(0, 560, thread = "blockIdx.x"):
+            for k in T.thread_binding(0, 560, thread = "blockIdx.y"):
+                for i in T.thread_binding(0, 32, thread = "threadIdx.x"):
+                    with T.block("spatial_features"):
+                        vi, vj, vk = T.axis.remap("SSS", [i, j, k])
+                        spatial_features[0, vi, vj, vk] = T.float32(0)
+        for i in T.thread_binding(0, 40000, thread = "blockIdx.x"):
+            for j in T.thread_binding(0, 32, thread = "threadIdx.x"):
+                with T.block("spatial_features"):
+                    vi, vj = T.axis.remap("SS", [i, j])
+                    if(coords[vi,0] >= 0):
+                        spatial_features[0, vj, coords[vi,1], coords[vi,2]] = pillar_features[vi, 0, vj]
 
 @tvm.script.ir_module
 class TestModule:
@@ -77,40 +96,22 @@ def scatter_py(voxel_features, coords):
 # func = rt_lib["scatter"]
 # func(X, C, Y)
 # print(Y.numpy())
-
-# pillar_features = tvm.nd.array(np.random.rand(40000, 1, 32).astype("float32"))
-# coords = tvm.nd.array(np.random.randint(0, 200, (40000, 3), dtype="int32"))
-# spatial_features = tvm.nd.empty((1, 32, 560, 560), dtype="float32")
-rt_lib = tvm.build(MyModule, target="llvm")
+device = tvm.runtime.device("opencl")
+pillar_features = tvm.nd.array(np.random.rand(40000, 1, 32).astype("float32"), device=device)
+coords = tvm.nd.array(np.random.randint(0, 200, (40000, 3), dtype="int32"), device=device)
+spatial_features = tvm.nd.empty((1, 32, 560, 560), dtype="float32", device=device)
+rt_lib = tvm.build(ModuleGPU, target="opencl")
 func = rt_lib["scatter"]
-# func(pillar_features, coords, spatial_features)
-# spatial_tvm = spatial_features.numpy()
 
-# spatial_python = scatter_py(pillar_features.numpy(), coords.numpy())
+func(pillar_features, coords, spatial_features)
 
-# diff = np.absolute(spatial_tvm - spatial_python)
-# print(diff)
-# print(diff[np.where(diff > 0.001)])
-# print(len(diff[np.where(diff > 0.001)]))
+spatial_tvm = spatial_features.numpy()
+
+spatial_python = scatter_py(pillar_features.numpy(), coords.numpy())
+
+diff = np.absolute(spatial_tvm - spatial_python)
+print(diff)
+print(diff[np.where(diff > 0.001)])
+print(len(diff[np.where(diff > 0.001)]))
 
 rt_lib.export_library("scatter.so")
-
-
-# model_encoder = "/home/xinyuwang/adehome/tvm_latest/tvm_example/pts_voxel_encoder_centerpoint.onnx"
-# onnx_encoder = onnx.load(model_encoder)
-# target = "llvm"
-# input_name = "spatial_features"
-# x = np.ones((40000,32,9), dtype=np.float32)
-# shape_dict = {input_name: x.shape}
-# mod, params = relay.frontend.from_onnx(onnx_encoder, shape_dict)
-# mod.update(MyModule)
-# with tvm.transform.PassContext(opt_level=3, config={}):
-#     lib = relay.build(mod, target=target, params=params)
-#     dev = tvm.device(str(target), 0)
-#     module = graph_executor.GraphModule(lib["default"](dev))
-#     dtype = "float32"
-#     module.set_input(input_name, x)
-#     module.run()
-#     output_shape = (40000, 1, 32)
-#     out_idx = 0
-#     tvm_output = module.get_output(out_idx, tvm.nd.empty(output_shape)).numpy()
