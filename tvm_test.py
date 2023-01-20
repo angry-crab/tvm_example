@@ -8,9 +8,9 @@ import tvm.auto_scheduler as auto_scheduler
 from tvm.autotvm.tuner import XGBTuner
 from tvm import autotvm
 
-model_encoder = "/home/xinyuwang/adehome/tvm_test/pts_voxel_encoder_centerpoint.onnx"
-model_head = "/home/xinyuwang/adehome/tvm_test/pts_backbone_neck_head_centerpoint.onnx"
-fcn = "/home/xinyuwang/adehome/tvm_test/fcn-resnet50-12.onnx"
+model_encoder = "/home/xinyuwang/adehome/tvm_latest/tvm_example/pts_voxel_encoder_centerpoint.onnx"
+model_head = "/home/xinyuwang/adehome/tvm_latest/tvm_example/pts_backbone_neck_head_centerpoint.onnx"
+fcn = "/home/xinyuwang/adehome/tvm_latest/tvm_example/fcn-resnet50-12.onnx"
 onnx_encoder = onnx.load(model_encoder)
 onnx_head = onnx.load(model_head)
 # onnx_fcn = onnx.load(fcn)
