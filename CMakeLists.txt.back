@@ -1,0 +1,48 @@
+set(TVM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+set(DMLC_CORE "${TVM_ROOT}/3rdparty/dmlc-core")
+
+include_directories(
+        "${TVM_ROOT}/include"
+        "${DMLC_CORE}/include"
+        "${TVM_ROOT}/3rdparty/dlpack/include"
+)
+add_definitions("-DDMLC_USE_LOGGING_LIBRARY=<tvm/runtime/logging.h>")
+
+add_executable(cpp_deploy_norm
+        cpp_deploy.cc
+        tvm_runtime_pack.cc
+        )
+set(LINUX_LIBS
+        pthread
+        dl)
+set(TVM_LIBS
+        )
+if (CUDA_FOUND)
+    message(STATUS "with cuda : ${CUDA_CUDART_LIBRARY}")
+    set(TVM_LIBS
+            ${TVM_LIBS}
+            ${CUDA_CUDART_LIBRARY}
+            ${CUDA_CUDA_LIBRARY}
+            ${CUDA_NVRTC_LIBRARY}
+            )
+    target_compile_definitions(cpp_deploy_norm PRIVATE "-DTVM_CUDA_RUNTIME=1")
+endif ()
+# if (OpenCL_FOUND)
+#     message(STATUS "with opencl : ${OpenCL_LIBRARIES}")
+#     set(TVM_LIBS
+#             ${TVM_LIBS}
+#             ${OpenCL_LIBRARIES}
+#             )
+#     target_compile_definitions(cpp_deploy_norm PRIVATE "-DTVM_OPENCL_RUNTIME=1")
+# endif ()
+
+if (NOT MSVC)
+    set(TVM_LIBS
+            ${TVM_LIBS}
+            ${LINUX_LIBS}
+            )
+endif ()
+target_link_libraries(cpp_deploy_norm
+        ${TVM_LIBS}
+        )
+target_compile_definitions(cpp_deploy_norm PRIVATE "-DTVM_EXPORTS=")
