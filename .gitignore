@@ -1,2 +1,4 @@
 *.onnx
 *.so
+build
+.pkl_*

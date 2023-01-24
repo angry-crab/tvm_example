@@ -15,8 +15,6 @@
 #ifndef TVM_UTILITY__PIPELINE_HPP_
 #define TVM_UTILITY__PIPELINE_HPP_
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
-
 #include <tvm_vendor/dlpack/dlpack.h>
 #include <tvm_vendor/tvm/runtime/c_runtime_api.h>
 #include <tvm_vendor/tvm/runtime/module.h>
@@ -97,89 +95,11 @@ public:
 };
 
 /**
- * @class PreProcessor
- * @brief Pre processor of the inference pipeline. In charge of converting data
- * from InputType into TVMArrayContainer format. Any necessary pre processing
- * of the data, such as image resizing or padding, should also be done in this
- * stage .
- *
- * @tparam InputType The data type of the input to the pre-processing pipeline
- * stage. Usually a ROS message type.
- */
-template <class InputType>
-class PreProcessor : public PipelineStage<InputType, TVMArrayContainerVector>
-{
-};
-
-/**
  * @class InferenceEngine
  * @brief Pipeline stage in charge of machine learning inference.
  */
 class InferenceEngine : public PipelineStage<TVMArrayContainerVector, TVMArrayContainerVector>
 {
-};
-
-/**
- * @class PostProcessor
- * @brief The post processing stage of the inference pipeline. In charge of
- * converting the tensor data from the inference stage into detections in
- * OutputType, usually a ROS message format. Thing such as decoding bounding
- * boxes, non-maximum-suppression and minimum score filtering should be done in
- * this stage.
- *
- * @tparam OutputType The data type of the output of the inference pipeline.
- * Usually a ROS message type.
- */
-template <class OutputType>
-class PostProcessor : public PipelineStage<TVMArrayContainerVector, OutputType>
-{
-};
-
-/**
- * @class Pipeline
- * @brief Inference Pipeline. Consists of 3 stages: preprocessor, inference
- * stage and postprocessor.
- */
-template <class PreProcessorType, class InferenceEngineType, class PostProcessorType>
-class Pipeline
-{
-  using InputType = decltype(std::declval<PreProcessorType>().input_type_indicator_);
-  using OutputType = decltype(std::declval<PostProcessorType>().output_type_indicator_);
-
-public:
-  /**
-   * @brief Construct a new Pipeline object
-   *
-   * @param pre_processor a PreProcessor object
-   * @param post_processor a PostProcessor object
-   * @param inference_engine a InferenceEngine object
-   */
-  Pipeline(
-    PreProcessorType pre_processor, InferenceEngineType inference_engine,
-    PostProcessorType post_processor)
-  : pre_processor_(pre_processor),
-    inference_engine_(inference_engine),
-    post_processor_(post_processor)
-  {
-  }
-
-  /**
-   * @brief run the pipeline. Return asynchronously in a callback.
-   *
-   * @param input The data to push into the pipeline
-   * @return The pipeline output
-   */
-  OutputType schedule(const InputType & input)
-  {
-    auto input_tensor = pre_processor_.schedule(input);
-    auto output_tensor = inference_engine_.schedule(input_tensor);
-    return post_processor_.schedule(output_tensor);
-  }
-
-private:
-  PreProcessorType pre_processor_{};
-  InferenceEngineType inference_engine_{};
-  PostProcessorType post_processor_{};
 };
 
 // NetworkNode
@@ -227,8 +147,7 @@ public:
   : config_(config)
   {
     // Get full network path
-    std::string network_prefix = ament_index_cpp::get_package_share_directory(pkg_name) +
-                                 "/models/" + config.network_name + "/";
+    std::string network_prefix = pkg_name + "/models/" + config.network_name + "/";
     std::string network_module_path = network_prefix + config.network_module_path;
     std::string network_graph_path = network_prefix + config.network_graph_path;
     std::string network_params_path = network_prefix + config.network_params_path;
@@ -347,58 +266,6 @@ private:
   const std::array<char, 3> version_up_to{2, 1, 0};
 };
 
-template <
-  class PreProcessorType, class InferenceEngineType, class TVMScriptEngineType,
-  class PostProcessorType>
-class TowStagePipeline
-{
-  using InputType = decltype(std::declval<PreProcessorType>().input_type_indicator_);
-  using OutputType = decltype(std::declval<PostProcessorType>().output_type_indicator_);
-
-public:
-  /**
-   * @brief Construct a new Pipeline object
-   *
-   * @param pre_processor a PreProcessor object
-   * @param post_processor a PostProcessor object
-   * @param inference_engine a InferenceEngine object
-   */
-  TowStagePipeline(
-    std::shared_ptr<PreProcessorType> pre_processor,
-    std::shared_ptr<InferenceEngineType> inference_engine_1,
-    std::shared_ptr<TVMScriptEngineType> tvm_script_engine,
-    std::shared_ptr<InferenceEngineType> inference_engine_2,
-    std::shared_ptr<PostProcessorType> post_processor)
-  : pre_processor_(pre_processor),
-    inference_engine_1_(inference_engine_1),
-    tvm_script_engine_(tvm_script_engine),
-    inference_engine_2_(inference_engine_2),
-    post_processor_(post_processor)
-  {
-  }
-
-  /**
-   * @brief run the pipeline. Return asynchronously in a callback.
-   *
-   * @param input The data to push into the pipeline
-   * @return The pipeline output
-   */
-  OutputType schedule(const InputType & input)
-  {
-    auto input_tensor = pre_processor_->schedule(input);
-    auto output_infer_1 = inference_engine_1_->schedule(input_tensor);
-    auto output_tvm_script = tvm_script_engine_->schedule(output_infer_1);
-    auto output_infer_2 = inference_engine_2_->schedule(output_tvm_script);
-    return post_processor_->schedule(output_infer_2);
-  }
-
-private:
-  std::shared_ptr<PreProcessorType> pre_processor_;
-  std::shared_ptr<InferenceEngineType> inference_engine_1_;
-  std::shared_ptr<TVMScriptEngineType> tvm_script_engine_;
-  std::shared_ptr<InferenceEngineType> inference_engine_2_;
-  std::shared_ptr<PostProcessorType> post_processor_;
-};
 
 }  // namespace pipeline
 }  // namespace tvm_utility
