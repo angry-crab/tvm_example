@@ -1,4 +1,7 @@
 *.onnx
+*.engine
 *.so
+*.json
+*.params
 build
 .pkl_*
