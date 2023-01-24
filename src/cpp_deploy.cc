@@ -79,21 +79,21 @@ void Verify(tvm::runtime::Module mod, std::string fname) {
 
 void DeploySingleOp() {
   // Normally we can directly
-  tvm::runtime::Module mod_dylib = tvm::runtime::Module::LoadFromFile("lib/test_addone_dll.so");
+  tvm::runtime::Module mod_dylib = tvm::runtime::Module::LoadFromFile("/home/xinyuwang/adehome/tvm_latest/tvm_example/test_addone_dll.so");
   LOG(INFO) << "Verify dynamic loading from test_addone_dll.so";
   Verify(mod_dylib, "addone");
   // For libraries that are directly packed as system lib and linked together with the app
   // We can directly use GetSystemLib to get the system wide library.
-  LOG(INFO) << "Verify load function from system lib";
-  tvm::runtime::Module mod_syslib = (*tvm::runtime::Registry::Get("runtime.SystemLib"))();
-  Verify(mod_syslib, "addonesys");
+//   LOG(INFO) << "Verify load function from system lib";
+//   tvm::runtime::Module mod_syslib = (*tvm::runtime::Registry::Get("runtime.SystemLib"))();
+//   Verify(mod_syslib, "addonesys");
 }
 
 void DeployGraphExecutor() {
   LOG(INFO) << "Running graph executor...";
   // load in the library
   DLDevice dev{kDLCPU, 0};
-  tvm::runtime::Module mod_factory = tvm::runtime::Module::LoadFromFile("lib/test_relay_add.so");
+  tvm::runtime::Module mod_factory = tvm::runtime::Module::LoadFromFile("/home/xinyuwang/adehome/tvm_latest/tvm_example/test_relay_add.so");
   // create the graph executor module
   tvm::runtime::Module gmod = mod_factory.GetFunction("default")(dev);
   tvm::runtime::PackedFunc set_input = gmod.GetFunction("set_input");
@@ -123,7 +123,7 @@ void DeployGraphExecutor() {
   }
 }
 
-int main(void) {
+int main() {
   DeploySingleOp();
   DeployGraphExecutor();
   return 0;
