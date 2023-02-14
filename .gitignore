@@ -5,3 +5,5 @@
 *.params
 build
 .pkl_*
+*.txt
+*.log

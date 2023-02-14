@@ -5,7 +5,7 @@ from tvm.script import tir as T
 import tvm.relay as relay
 from tvm.contrib import graph_executor
 
-import onnx
+# import onnx
 # from tvm.ir.module import IRModule
 # from tvm.contrib import graph_executor
 # from tvm import relay
@@ -96,22 +96,23 @@ def scatter_py(voxel_features, coords):
 # func = rt_lib["scatter"]
 # func(X, C, Y)
 # print(Y.numpy())
-device = tvm.runtime.device("opencl")
+target = "cuda"
+device = tvm.runtime.device(target)
 pillar_features = tvm.nd.array(np.random.rand(40000, 1, 32).astype("float32"), device=device)
 coords = tvm.nd.array(np.random.randint(0, 200, (40000, 3), dtype="int32"), device=device)
 spatial_features = tvm.nd.empty((1, 32, 560, 560), dtype="float32", device=device)
-rt_lib = tvm.build(ModuleGPU, target="opencl")
+rt_lib = tvm.build(ModuleGPU, target=target)
 func = rt_lib["scatter"]
 
 func(pillar_features, coords, spatial_features)
 
 spatial_tvm = spatial_features.numpy()
 
-spatial_python = scatter_py(pillar_features.numpy(), coords.numpy())
+# spatial_python = scatter_py(pillar_features.numpy(), coords.numpy())
 
-diff = np.absolute(spatial_tvm - spatial_python)
-print(diff)
-print(diff[np.where(diff > 0.001)])
-print(len(diff[np.where(diff > 0.001)]))
+# diff = np.absolute(spatial_tvm - spatial_python)
+# print(diff)
+# print(diff[np.where(diff > 0.001)])
+# print(len(diff[np.where(diff > 0.001)]))
 
 rt_lib.export_library("scatter.so")

@@ -17,25 +17,32 @@
 #ifndef CENTERPOINT_ENCODER_INFERENCE_ENGINE_TVM_CONFIG_HPP_  // NOLINT
 #define CENTERPOINT_ENCODER_INFERENCE_ENGINE_TVM_CONFIG_HPP_
 
-
-namespace tvm_centerpoint_encoder
+namespace model_zoo
+{
+namespace perception
+{
+namespace lidar_obstacle_detection
+{
+namespace centerpoint_encoder
+{
+namespace onnx_centerpoint_encoder
 {
 
 static const tvm_utility::pipeline::InferenceEngineTVMConfig config {
   {
-    3,
+    0,
     0,
     0
   },  // modelzoo_version
 
   "centerpoint_encoder",  // network_name
-  "llvm",  // network_backend
+  "cuda",  // network_backend
 
   "./deploy_lib.so",  //network_module_path
   "./deploy_graph.json",  // network_graph_path
   "./deploy_param.params",  // network_params_path
 
-  kDLCPU,  // tvm_device_type
+  kDLCUDA,  // tvm_device_type
   0,  // tvm_device_id
 
   {
@@ -47,6 +54,9 @@ static const tvm_utility::pipeline::InferenceEngineTVMConfig config {
   }  // network_outputs
 };
 
-}  // namespace
-
+}  // namespace onnx_centerpoint_encoder
+}  // namespace centerpoint_encoder
+}  // namespace lidar_obstacle_detection
+}  // namespace perception
+}  // namespace model_zoo
 #endif  // CENTERPOINT_ENCODER_INFERENCE_ENGINE_TVM_CONFIG_HPP_  // NOLINT

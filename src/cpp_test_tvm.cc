@@ -26,9 +26,9 @@ TVMScatterIE::TVMScatterIE(
   const std::string & function_name)
 : config_(config)
 {
-  std::string base = "";
+  std::string base = "/home/xinyuwang/adehome/tvm_latest/tvm_example";
   std::string network_prefix =
-    base + "/models/" + config.network_name + "/";
+    base + "/compiled_models/" + config.network_name + "/";
   std::string network_module_path = network_prefix + config.network_module_path;
 
   std::ifstream module(network_module_path);
@@ -56,7 +56,7 @@ TVMArrayContainerVector TVMScatterIE::schedule(const TVMArrayContainerVector & i
 
 VoxelEncoderPreProcessor::VoxelEncoderPreProcessor(
   const tvm_utility::pipeline::InferenceEngineTVMConfig & config,
-  const CenterPointConfig & config_mod)
+  const centerpoint::CenterPointConfig & config_mod)
 : max_voxel_size(config.network_inputs[0].node_shape[0]),
   max_point_in_voxel_size(config.network_inputs[0].node_shape[1]),
   encoder_in_feature_size(config.network_inputs[0].node_shape[2]),
@@ -92,7 +92,7 @@ TVMArrayContainerVector VoxelEncoderPreProcessor::schedule(const std::vector<flo
 
 BackboneNeckHeadPostProcessor::BackboneNeckHeadPostProcessor(
   const tvm_utility::pipeline::InferenceEngineTVMConfig & config,
-  const CenterPointConfig & config_mod)
+  const centerpoint::CenterPointConfig & config_mod)
 : output_datatype_bytes(config.network_outputs[0].tvm_dtype_bits / 8), config_detail(config_mod)
 {
   head_out_heatmap.resize(
@@ -115,7 +115,7 @@ BackboneNeckHeadPostProcessor::BackboneNeckHeadPostProcessor(
     config.network_outputs[5].node_shape[3]);
 }
 
-std::vector<Box3D> BackboneNeckHeadPostProcessor::schedule(const TVMArrayContainerVector & input)
+bool BackboneNeckHeadPostProcessor::schedule(const TVMArrayContainerVector & input)
 {
   TVMArrayCopyToBytes(
     input[0].getArray(), head_out_heatmap.data(), head_out_heatmap.size() * output_datatype_bytes);
@@ -151,24 +151,31 @@ int main() {
   const auto encoder_in_features_size = config_en.network_inputs[0].node_shape[0] * config_en.network_inputs[0].node_shape[1]
     * config_en.network_inputs[0].node_shape[2];
   
-  std::vector<float> encoder_in_features(encoder_in_features_size, 0);
+  std::vector<float> encoder_in_features(encoder_in_features_size, 1.0);
   std::vector<int32_t> coords(coordinates_size, 0);
+  for (size_t i=0; i < coordinates_size; i++)
+  {
+    coords[i] = rand() % 100;
+  }
+
+  TVMArrayCopyFromBytes(
+    coords_tvm_.getArray(), coords.data(), coords.size() * sizeof(int32_t));
   // Voxel Encoder Pipeline.
   std::shared_ptr<VE_PrePT> VE_PreP = std::make_shared<VE_PrePT>(config_en, config);
-  std::shared_ptr<IET> VE_IE = std::make_shared<IET>(config_en, "lidar_centerpoint_tvm");
+  std::shared_ptr<IET> VE_IE = std::make_shared<IET>(config_en, "/home/xinyuwang/adehome/tvm_latest/tvm_example");
 
   // Backbone Neck Head Pipeline.
-  std::shared_ptr<IET> BNH_IE = std::make_shared<IET>(config_bk, "lidar_centerpoint_tvm");
+  std::shared_ptr<IET> BNH_IE = std::make_shared<IET>(config_bk, "/home/xinyuwang/adehome/tvm_latest/tvm_example");
   std::shared_ptr<BNH_PostPT> BNH_PostP = std::make_shared<BNH_PostPT>(config_bk, config);
 
-  std::shared_ptr<TSE> scatter_ie = std::make_shared<TSE>(config_scatter, "lidar_centerpoint_tvm", "scatter");
+  std::shared_ptr<TSE> scatter_ie = std::make_shared<TSE>(config_scatter, "/home/xinyuwang/adehome/tvm_latest/tvm_example", "scatter");
   std::shared_ptr<tvm_utility::pipeline::TowStagePipeline<VE_PrePT, IET, TSE, BNH_PostPT>>
     TSP_pipeline = std::make_shared<TSP>(VE_PreP, VE_IE, scatter_ie, BNH_IE, BNH_PostP);
   
 
   scatter_ie->set_coords(coords_tvm_);
   // MixedInputs voxel_inputs{num_voxels_, *voxels_, *num_points_per_voxel_, *coordinates_};
-  auto bnh_output = TSP_pipeline->schedule(voxel_inputs);
+  auto bnh_output = TSP_pipeline->schedule(encoder_in_features);
 
   return 0;
 }

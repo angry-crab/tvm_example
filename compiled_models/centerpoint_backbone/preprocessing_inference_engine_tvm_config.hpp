@@ -17,26 +17,34 @@
 #ifndef CENTERPOINT_BACKBONE_SCATTER_INFERENCE_ENGINE_TVM_CONFIG_HPP_  // NOLINT
 #define CENTERPOINT_BACKBONE_SCATTER_INFERENCE_ENGINE_TVM_CONFIG_HPP_
 
-namespace tvm_centerpoint_backbone
+namespace model_zoo
+{
+namespace perception
+{
+namespace lidar_obstacle_detection
+{
+namespace centerpoint_backbone
+{
+namespace onnx_centerpoint_backbone
 {
 namespace preprocessing
 {
 
 static const tvm_utility::pipeline::InferenceEngineTVMConfig config {
   {
-    3,
+    0,
     0,
     0
   },  // modelzoo_version
 
   "centerpoint_backbone",  // network_name
-  "llvm",  // network_backend
+  "cuda",  // network_backend
 
   "./preprocess.so",  //network_module_path
   "./",  // network_graph_path
   "./",  // network_params_path
 
-  kDLCPU,  // tvm_device_type
+  kDLCUDA,  // tvm_device_type
   0,  // tvm_device_id
 
   {
@@ -51,5 +59,8 @@ static const tvm_utility::pipeline::InferenceEngineTVMConfig config {
 
 }  // namespace preprocessing
 }  // namespace onnx_centerpoint_backbone
-
+}  // namespace centerpoint_backbone
+}  // namespace lidar_obstacle_detection
+}  // namespace perception
+}  // namespace model_zoo
 #endif  // CENTERPOINT_BACKBONE_SCATTER_INFERENCE_ENGINE_TVM_CONFIG_HPP_  // NOLINT

@@ -1,88 +1,56 @@
 import onnx
 import numpy as np
 import onnxruntime as ort
-import tvm.relay as relay
 import tvm
 from tvm.contrib import graph_executor
 import tvm.auto_scheduler as auto_scheduler
-from tvm.autotvm.tuner import XGBTuner
-from tvm import autotvm
+from tvm import relay, autotvm
+import tvm.relay.testing
+from tvm.autotvm.tuner import XGBTuner, GATuner, RandomTuner, GridSearchTuner
 
-model_encoder = "/home/xinyuwang/adehome/tvm_latest/tvm_example/pts_voxel_encoder_centerpoint.onnx"
-model_head = "/home/xinyuwang/adehome/tvm_latest/tvm_example/pts_backbone_neck_head_centerpoint.onnx"
-fcn = "/home/xinyuwang/adehome/tvm_latest/tvm_example/fcn-resnet50-12.onnx"
-onnx_encoder = onnx.load(model_encoder)
-onnx_head = onnx.load(model_head)
-# onnx_fcn = onnx.load(fcn)
+model_encoder = "/home/xinyuwang/adehome/tvm_latest/tvm_example/model/pts_voxel_encoder_centerpoint.onnx"
+model_head = "/home/xinyuwang/adehome/tvm_latest/tvm_example/model/pts_backbone_neck_head_centerpoint.onnx"
+fcn = "/home/xinyuwang/adehome/tvm_latest/tvm_example/model/fcn-resnet50-12.onnx"
 
-# x = np.ones((40000,32,9), dtype=np.float32)
-x = np.zeros((1,32,560,560), dtype=np.float32)
+onnx_ = onnx.load(model_encoder)
+x = np.ones((40000,32,9), dtype=np.float32)
+input_name = "input_features"
 
-ort_sess = ort.InferenceSession(onnx_head.SerializeToString())
-# out_onnx = ort_sess.run(None, {'input_features': x})
-out_onnx = ort_sess.run(None, {'spatial_features': x})
+ort_sess = ort.InferenceSession(onnx_.SerializeToString())
+out_onnx = ort_sess.run(None, {input_name: x})
 
-# print(out_onnx.shape)
-# np.savez("x", data=x)
+# onnx_ = onnx.load(model_head)
+# x = np.ones((1,32,560,560), dtype=np.float32)
+# input_name = "spatial_features"
 
-# mm = tvm.runtime.load_module("/home/xinyuwang/adehome/tvm_test/mod.tar")
+# target = "cuda"
+target = tvm.target.create('cuda')
 
-# out_lib = np.load("/home/xinyuwang/adehome/tvm_test/lib_llvm.npz")
-
-# print(out_lib.files)
-
-# target = tvm.target.cuda(model="3070ti",arch="sm_86")
-target = "llvm"
-
-input_name = "spatial_features"
 shape_dict = {input_name: x.shape}
 
-mod, params = relay.frontend.from_onnx(onnx_head, shape_dict)
+mod, params = relay.frontend.from_onnx(onnx_, shape_dict)
 
-# mod.show()
+# print(mod.astext())
 
-# number = 20
-# repeat = 3
-# min_repeat_ms = 250  # since we're tuning on a CPU, can be set to 0
-# timeout = 10  # in seconds
+# print(type(mod))
+# s = tvm.tir.Schedule(mod)
 
-# # create a TVM runner
-# runner = autotvm.LocalRunner(
-#     number=number,
-#     repeat=repeat,
-#     timeout=timeout,
-#     min_repeat_ms=min_repeat_ms,
-#     enable_cpu_cache_flush=True,
-# )
+# s.work_on("main")
+# s.get_block("tvmgen_default_fused_nn_dense")
 
-# tuning_option = {
-#     "tuner": "xgb",
-#     "trials": 9000,
-#     "early_stopping": 600,
-#     "measure_option": autotvm.measure_option(
-#         builder=autotvm.LocalBuilder(timeout=15), runner=runner
-#     ),
-#     "tuning_records": "encoder-autotuning.json",
-# }
+# print(dir(s))
 
-# tasks = autotvm.task.extract_from_program(mod["main"], target=target, params=params)
+# vs = relay.analysis.all_vars(mod)
+# print(vs)
 
-# # Tune the extracted tasks sequentially.
-# for i, task in enumerate(tasks):
-#     prefix = "[Task %2d/%2d] " % (i + 1, len(tasks))
-#     tuner_obj = XGBTuner(task, loss_type="rank")
-#     tuner_obj.tune(
-#         n_trial=min(tuning_option["trials"], len(task.config_space)),
-#         early_stopping=tuning_option["early_stopping"],
-#         measure_option=tuning_option["measure_option"],
-#         callbacks=[
-#             autotvm.callback.progress_bar(tuning_option["trials"], prefix=prefix),
-#             autotvm.callback.log_to_file(tuning_option["tuning_records"]),
-#         ],
-#     )
+# with tvm.transform.PassContext(opt_level=3, config={}):
+#     lib = relay.build(mod, target=target, params=params)
+#     print(lib.get_params())
+    # source = lib.get_lib().imported_modules[0].get_source()
+    # with open("cuda_code.txt", "a") as t:
+    #     print(source, file=t)
 
 
-# with autotvm.apply_history_best(tuning_option["tuning_records"]):
 with tvm.transform.PassContext(opt_level=3, config={}):
     lib = relay.build(mod, target=target, params=params)
 
@@ -92,15 +60,13 @@ with tvm.transform.PassContext(opt_level=3, config={}):
     dtype = "float32"
     module.set_input(input_name, x)
     module.run()
-    # output_shape = (40000, 1, 32)
-    output_shape = (1, 3, 560, 560)
+    output_shape = (40000, 1, 32)
+    # output_shape = (1, 5, 560, 560)
     out_idx = 0
     tvm_output = module.get_output(out_idx, tvm.nd.empty(output_shape)).numpy()
 
     print(tvm_output.shape)
     print(out_onnx[out_idx].shape)
-    # for i in range(len(out_onnx)):
-    # idx = "output_" + str(0)
     result = out_onnx[out_idx] - tvm_output
     print(result[np.where(result > 0.0001)])
     print(len(result[np.where(result > 0.0001)]))

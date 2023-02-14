@@ -1,4 +1,5 @@
 #include <pipeline.hpp>
+#include <centerpoint_config.hpp>
 
 #include <memory>
 #include <string>
@@ -22,7 +23,7 @@ struct MixedInputs
   std::vector<int32_t> coords;
 };
 
-class LIDAR_CENTERPOINT_TVM_LOCAL TVMScatterIE : public tvm_utility::pipeline::InferenceEngine
+class TVMScatterIE : public tvm_utility::pipeline::InferenceEngine
 {
 public:
   explicit TVMScatterIE(
@@ -37,7 +38,7 @@ public:
   tvm::runtime::PackedFunc scatter_function;
 };
 
-class LIDAR_CENTERPOINT_TVM_LOCAL VoxelEncoderPreProcessor
+class VoxelEncoderPreProcessor
 : public tvm_utility::pipeline::PreProcessor<std::vector<float>>
 {
 public:
@@ -46,7 +47,7 @@ public:
   /// \param[in] config_mod The centerpoint model configuration.
   explicit VoxelEncoderPreProcessor(
     const tvm_utility::pipeline::InferenceEngineTVMConfig & config,
-    const CenterPointConfig & config_mod);
+    const centerpoint::CenterPointConfig & config_mod);
 
   /// \brief Convert the voxel_features to encoder_in_features (a TVM array).
   /// \param[in] voxel_inputs The voxel features related input
@@ -58,13 +59,13 @@ public:
   const int64_t max_point_in_voxel_size;
   const int64_t encoder_in_feature_size;
   const int64_t input_datatype_bytes;
-  const CenterPointConfig config_detail;
+  const centerpoint::CenterPointConfig config_detail;
   std::vector<float> encoder_in_features;
   TVMArrayContainer output;
 };
 
-class LIDAR_CENTERPOINT_TVM_LOCAL BackboneNeckHeadPostProcessor
-: public tvm_utility::pipeline::PostProcessor<std::vector<Box3D>>
+class BackboneNeckHeadPostProcessor
+: public tvm_utility::pipeline::PostProcessor<bool>
 {
 public:
   /// \brief Constructor.
@@ -72,7 +73,7 @@ public:
   /// \param[in] config_mod The centerpoint model configuration.
   explicit BackboneNeckHeadPostProcessor(
     const tvm_utility::pipeline::InferenceEngineTVMConfig & config,
-    const CenterPointConfig & config_mod);
+    const centerpoint::CenterPointConfig & config_mod);
 
   /// \brief Copy the inference result.
   /// \param[in] input The result of the inference engine.
@@ -80,7 +81,7 @@ public:
   bool schedule(const TVMArrayContainerVector & input);
 
   const int64_t output_datatype_bytes;
-  const CenterPointConfig config_detail;
+  const centerpoint::CenterPointConfig config_detail;
   std::vector<float> head_out_heatmap;
   std::vector<float> head_out_offset;
   std::vector<float> head_out_z;

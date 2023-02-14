@@ -18,6 +18,7 @@
 #include <tvm_vendor/dlpack/dlpack.h>
 #include <tvm_vendor/tvm/runtime/c_runtime_api.h>
 #include <tvm_vendor/tvm/runtime/module.h>
+#include <tvm_vendor/tvm/runtime/profiling.h>
 #include <tvm_vendor/tvm/runtime/packed_func.h>
 #include <tvm_vendor/tvm/runtime/registry.h>
 
@@ -26,6 +27,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <chrono>
 
 namespace tvm_utility
 {
@@ -95,10 +97,41 @@ public:
 };
 
 /**
+ * @class PreProcessor
+ * @brief Pre processor of the inference pipeline. In charge of converting data
+ * from InputType into TVMArrayContainer format. Any necessary pre processing
+ * of the data, such as image resizing or padding, should also be done in this
+ * stage .
+ *
+ * @tparam InputType The data type of the input to the pre-processing pipeline
+ * stage. Usually a ROS message type.
+ */
+template <class InputType>
+class PreProcessor : public PipelineStage<InputType, TVMArrayContainerVector>
+{
+};
+
+/**
  * @class InferenceEngine
  * @brief Pipeline stage in charge of machine learning inference.
  */
 class InferenceEngine : public PipelineStage<TVMArrayContainerVector, TVMArrayContainerVector>
+{
+};
+
+/**
+ * @class PostProcessor
+ * @brief The post processing stage of the inference pipeline. In charge of
+ * converting the tensor data from the inference stage into detections in
+ * OutputType, usually a ROS message format. Thing such as decoding bounding
+ * boxes, non-maximum-suppression and minimum score filtering should be done in
+ * this stage.
+ *
+ * @tparam OutputType The data type of the output of the inference pipeline.
+ * Usually a ROS message type.
+ */
+template <class OutputType>
+class PostProcessor : public PipelineStage<TVMArrayContainerVector, OutputType>
 {
 };
 
@@ -147,7 +180,7 @@ public:
   : config_(config)
   {
     // Get full network path
-    std::string network_prefix = pkg_name + "/models/" + config.network_name + "/";
+    std::string network_prefix = pkg_name + "/compiled_models/" + config.network_name + "/";
     std::string network_module_path = network_prefix + config.network_module_path;
     std::string network_graph_path = network_prefix + config.network_graph_path;
     std::string network_params_path = network_prefix + config.network_params_path;
@@ -187,7 +220,7 @@ public:
     params_arr.size = params_data.length();
 
     // Create tvm runtime module
-    tvm::runtime::Module runtime_mod = (*tvm::runtime::Registry::Get("tvm.graph_executor.create"))(
+    runtime_mod = (*tvm::runtime::Registry::Get("tvm.graph_executor_debug.create"))(
       json_data, mod, static_cast<uint32_t>(config.tvm_device_type), config.tvm_device_id);
 
     // Load parameters
@@ -220,8 +253,29 @@ public:
       set_input(config_.network_inputs[index].node_name.c_str(), input[index].getArray());
     }
 
+    // tvm::Device device;
+    // device.device_type = config_.tvm_device_type;
+    // device.device_id = config_.tvm_device_id;
+
+    // tvm::runtime::profiling::Profiler prof({device}, {tvm::runtime::profiling::MetricCollector()});
+    // prof.Start();
+    // prof.StartCall("profile", device);
+    // tvm::runtime::profiling::Profiler prof;
+
+    tvm::runtime::PackedFunc profile = runtime_mod.GetFunction("profile");
+    tvm::runtime::profiling::Report report = profile(tvm::runtime::Array<tvm::runtime::profiling::MetricCollector>());
+
     // Execute the inference
-    execute();
+    for (int i = 0; i < 10; i++)
+    {
+      execute();
+    }
+
+    // prof.StopCall();
+    // prof.Stop();
+    // std::cout << prof.Report()->AsTable() << std::endl;
+
+    std::cout << report->AsTable() << "\n";
 
     // Get output(s)
     for (uint32_t index = 0; index < output_.size(); ++index) {
@@ -256,16 +310,68 @@ public:
     return ret;
   }
 
-private:
   InferenceEngineTVMConfig config_;
   TVMArrayContainerVector output_;
   tvm::runtime::PackedFunc set_input;
   tvm::runtime::PackedFunc execute;
   tvm::runtime::PackedFunc get_output;
+  tvm::runtime::Module runtime_mod;
   // Latest supported model version.
   const std::array<char, 3> version_up_to{2, 1, 0};
 };
 
+template <
+  class PreProcessorType, class InferenceEngineType, class TVMScriptEngineType,
+  class PostProcessorType>
+class TowStagePipeline
+{
+  using InputType = decltype(std::declval<PreProcessorType>().input_type_indicator_);
+  using OutputType = decltype(std::declval<PostProcessorType>().output_type_indicator_);
+
+public:
+  /**
+   * @brief Construct a new Pipeline object
+   *
+   * @param pre_processor a PreProcessor object
+   * @param post_processor a PostProcessor object
+   * @param inference_engine a InferenceEngine object
+   */
+  TowStagePipeline(
+    std::shared_ptr<PreProcessorType> pre_processor,
+    std::shared_ptr<InferenceEngineType> inference_engine_1,
+    std::shared_ptr<TVMScriptEngineType> tvm_script_engine,
+    std::shared_ptr<InferenceEngineType> inference_engine_2,
+    std::shared_ptr<PostProcessorType> post_processor)
+  : pre_processor_(pre_processor),
+    inference_engine_1_(inference_engine_1),
+    tvm_script_engine_(tvm_script_engine),
+    inference_engine_2_(inference_engine_2),
+    post_processor_(post_processor)
+  {
+  }
+
+  /**
+   * @brief run the pipeline. Return asynchronously in a callback.
+   *
+   * @param input The data to push into the pipeline
+   * @return The pipeline output
+   */
+  OutputType schedule(const InputType & input)
+  {
+    auto input_tensor = pre_processor_->schedule(input);
+    auto output_infer_1 = inference_engine_1_->schedule(input_tensor);
+    auto output_tvm_script = tvm_script_engine_->schedule(output_infer_1);
+    auto output_infer_2 = inference_engine_2_->schedule(output_tvm_script);
+    return post_processor_->schedule(output_infer_2);
+  }
+
+private:
+  std::shared_ptr<PreProcessorType> pre_processor_;
+  std::shared_ptr<InferenceEngineType> inference_engine_1_;
+  std::shared_ptr<TVMScriptEngineType> tvm_script_engine_;
+  std::shared_ptr<InferenceEngineType> inference_engine_2_;
+  std::shared_ptr<PostProcessorType> post_processor_;
+};
 
 }  // namespace pipeline
 }  // namespace tvm_utility
