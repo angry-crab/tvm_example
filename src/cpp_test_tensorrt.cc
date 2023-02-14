@@ -77,22 +77,29 @@ int main()
         cudaMemcpyHostToDevice));
     CHECK_CUDA_ERROR(cudaStreamSynchronize(stream_));
 
-    auto start = std::chrono::system_clock::now();
+    std::chrono::duration<long int, std::ratio<1, 1000>> d(0);
+    for (int i = 0; i < 100; i++)
+    {
+        auto start = std::chrono::system_clock::now();
     
-    std::vector<void *> encoder_buffers{encoder_in_features_d_.get(), pillar_features_d_.get()};
-    encoder.context_->enqueueV2(encoder_buffers.data(), stream_, nullptr);
+        std::vector<void *> encoder_buffers{encoder_in_features_d_.get(), pillar_features_d_.get()};
+        encoder.context_->enqueueV2(encoder_buffers.data(), stream_, nullptr);
 
-    std::vector<void *> head_buffers = {spatial_features_d_.get(), head_out_heatmap_d_.get(),
-                                      head_out_offset_d_.get(),  head_out_z_d_.get(),
-                                      head_out_dim_d_.get(),     head_out_rot_d_.get(),
-                                      head_out_vel_d_.get()};
-    header.context_->enqueueV2(head_buffers.data(), stream_, nullptr);
+        std::vector<void *> head_buffers = {spatial_features_d_.get(), head_out_heatmap_d_.get(),
+                                        head_out_offset_d_.get(),  head_out_z_d_.get(),
+                                        head_out_dim_d_.get(),     head_out_rot_d_.get(),
+                                        head_out_vel_d_.get()};
+        header.context_->enqueueV2(head_buffers.data(), stream_, nullptr);
 
 
-    auto stop = std::chrono::system_clock::now();
+        auto stop = std::chrono::system_clock::now();
 
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "run time: " << duration.count() << std::endl;
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+        d += duration;
+        // std::cout << "run time: " << duration.count() << std::endl;
+    }
+
+    std::cout << "run time: " << d.count() / 100 << std::endl;
 
     // std::vector<float> pillar_features_host(pillar_features_size, 0);
     // CHECK_CUDA_ERROR(cudaMemcpyAsync(

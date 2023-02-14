@@ -262,20 +262,31 @@ public:
     // prof.StartCall("profile", device);
     // tvm::runtime::profiling::Profiler prof;
 
-    tvm::runtime::PackedFunc profile = runtime_mod.GetFunction("profile");
-    tvm::runtime::profiling::Report report = profile(tvm::runtime::Array<tvm::runtime::profiling::MetricCollector>());
+    // tvm::runtime::PackedFunc profile = runtime_mod.GetFunction("profile");
+    // tvm::runtime::profiling::Report report = profile(tvm::runtime::Array<tvm::runtime::profiling::MetricCollector>());
+    
+    // std::chrono::duration<long int, std::ratio<1, 1000>> d(0);
 
     // Execute the inference
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 100; i++)
     {
+      // auto start = std::chrono::high_resolution_clock::now();
+
       execute();
+
+      // auto stop = std::chrono::high_resolution_clock::now();
+      // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+      // d += duration;
+      // std::cout << "run time: " << duration.count() << std::endl;
     }
+
+    // std::cout << "run time: " << d.count() / 100 << std::endl;
 
     // prof.StopCall();
     // prof.Stop();
     // std::cout << prof.Report()->AsTable() << std::endl;
 
-    std::cout << report->AsTable() << "\n";
+    // std::cout << report->AsTable() << "\n";
 
     // Get output(s)
     for (uint32_t index = 0; index < output_.size(); ++index) {
