@@ -7,3 +7,4 @@ build
 .pkl_*
 *.txt
 *.log
+*.tsv

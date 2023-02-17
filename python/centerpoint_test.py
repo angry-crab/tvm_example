@@ -47,6 +47,11 @@ mod, params = relay.frontend.from_onnx(onnx_, shape_dict)
 
 # tasks = autotvm.task.extract_from_program(mod["main"], target=target, params=params)
 
+# for i, task in enumerate(tasks):
+#     print(task.name)
+#     print(task.args)
+#     print(task.kwargs)
+
 # # Tune the extracted tasks sequentially.
 # for i, task in enumerate(tasks):
 #     prefix = "[Task %2d/%2d] " % (i + 1, len(tasks))
@@ -75,23 +80,23 @@ mod, params = relay.frontend.from_onnx(onnx_, shape_dict)
 
 # with autotvm.apply_history_best(tuning_option["tuning_records"]):
 
-with tvm.transform.PassContext(opt_level=3, config={}):
-    graph, lib, params = relay.build(mod, target=target, params=params)
+# with tvm.transform.PassContext(opt_level=3, config={}):
+#     graph, lib, params = relay.build(mod, target=target, params=params)
 
-    # dev = tvm.device(str(target), 0)
-    # module = graph_executor.GraphModule(lib["default"](dev))
+#     # dev = tvm.device(str(target), 0)
+#     # module = graph_executor.GraphModule(lib["default"](dev))
 
-    # dtype = "float32"
-    # module.set_input(input_name, x)
-    # module.run()
-    # output_shape = (1,12,864,864)
-    # tvm_output = module.get_output(0, tvm.nd.empty(output_shape)).numpy()
-    # print(tvm_output.shape)
+#     # dtype = "float32"
+#     # module.set_input(input_name, x)
+#     # module.run()
+#     # output_shape = (1,12,864,864)
+#     # tvm_output = module.get_output(0, tvm.nd.empty(output_shape)).numpy()
+#     # print(tvm_output.shape)
 
-    lib.export_library(output_model_path)
+#     lib.export_library(output_model_path)
 
-    with open(output_graph_path, 'w', encoding='utf-8') as graph_file:
-        graph_file.write(graph)
+#     with open(output_graph_path, 'w', encoding='utf-8') as graph_file:
+#         graph_file.write(graph)
 
-    with open(output_param_path, 'wb') as param_file:
-        param_file.write(relay.save_param_dict(params))
+#     with open(output_param_path, 'wb') as param_file:
+#         param_file.write(relay.save_param_dict(params))
