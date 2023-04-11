@@ -91,6 +91,12 @@ if(TRT_AVAIL AND CUDA_AVAIL AND CUDNN_AVAIL)
                 src/network_trt.cc
                 src/tensorrt_wrapper.cc
         )
+        cuda_add_library(test_cuda_lib SHARED
+                src/postprocess_kernel.cu
+        )
+        add_library(detectbox_cpp
+                generate_detected_boxes.cc
+        )
         add_executable(tensorrt_cpp_test
                 src/cpp_test_tensorrt.cc
         )
@@ -101,11 +107,12 @@ if(TRT_AVAIL AND CUDA_AVAIL AND CUDNN_AVAIL)
                 ${CUBLAS_LIBRARIES}
                 ${CUDA_curand_LIBRARY}
                 ${CUDNN_LIBRARY}
+                test_cuda_lib
+                detectbox_cpp
         )
         target_link_libraries(tensorrt_cpp_test
                 network_trt
         )
-
         target_include_directories(tensorrt_cpp_test
         PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -113,6 +120,23 @@ if(TRT_AVAIL AND CUDA_AVAIL AND CUDNN_AVAIL)
         )
 
         target_include_directories(tensorrt_cpp_test
+        SYSTEM PUBLIC
+                ${CUDA_INCLUDE_DIRS}
+        )
+
+        add_executable(cuda_cpp_test
+        src/cuda_cpp_test.cc
+        )
+        target_link_libraries(cuda_cpp_test
+                network_trt
+        )
+        target_include_directories(cuda_cpp_test
+        PUBLIC
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<INSTALL_INTERFACE:include>
+        )
+
+        target_include_directories(cuda_cpp_test
         SYSTEM PUBLIC
                 ${CUDA_INCLUDE_DIRS}
         )

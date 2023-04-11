@@ -15,13 +15,13 @@ output_model_path = "/home/xinyuwang/adehome/tvm_latest/tvm_example/deploy_lib.s
 output_graph_path = "/home/xinyuwang/adehome/tvm_latest/tvm_example/deploy_graph.json"
 output_param_path = "/home/xinyuwang/adehome/tvm_latest/tvm_example/deploy_param.params"
 
-onnx_ = onnx.load(model_encoder)
-x = np.ones((40000,32,9), dtype=np.float32)
-input_name = "input_features"
+# onnx_ = onnx.load(model_encoder)
+# x = np.ones((40000,32,9), dtype=np.float32)
+# input_name = "input_features"
 
-# onnx_ = onnx.load(model_head)
-# x = np.ones((1,32,560,560), dtype=np.float32)
-# input_name = "spatial_features"
+onnx_ = onnx.load(model_head)
+x = np.ones((1,32,560,560), dtype=np.float32)
+input_name = "spatial_features"
 
 target = "cuda"
 
@@ -40,11 +40,11 @@ hardware_params = auto_scheduler.HardwareParams(
     target=target,
 )
 
-network = "encoder"
+network = "header"
 log_file = "%s.json" % network
 
 runner = auto_scheduler.LocalRunner(
-        timeout=15,
+        timeout=10,
         number=3,
         repeat=2,
         min_repeat_ms=100,
@@ -69,7 +69,7 @@ for idx, (task, task_weight) in enumerate(zip(tasks, task_weights)):
 tuner = auto_scheduler.TaskScheduler(tasks, task_weights)
 tuner.tune(
     auto_scheduler.TuningOptions(
-        num_measure_trials=3000,
+        num_measure_trials=6000,
         verbose=1,
         runner=runner,
         measure_callbacks=[
