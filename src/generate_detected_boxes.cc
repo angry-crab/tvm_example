@@ -74,7 +74,7 @@ void generateBoxes3D_worker(
     const auto yi = grid_idx / config.down_grid_size_x_;
     const auto xi = grid_idx % config.down_grid_size_x_;
 
-    if (yi >= config.down_grid_size_y_ || xi >= config.down_grid_size_x_) {
+    if (yi >= config.down_grid_size_y_ || xi >= config.down_grid_size_x_ || grid_idx >= down_grid_size) {
       return;
     }
 
