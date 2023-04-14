@@ -80,6 +80,16 @@ __global__ void generateBoxes3D_kernel(
     }
   }
 
+  // if(xi == 1 && yi == 0) {
+  //   printf("gpu grid idx : %d \n", idx);
+  //   printf("gpu w : %f \n", out_dim[down_grid_size * 0 + idx]);
+  //   printf("gpu l : %f \n", out_dim[down_grid_size * 1 + idx]);
+  //   printf("gpu h : %f \n", out_dim[down_grid_size * 2 + idx]);
+  //   printf("gpu width : %f \n", expf(out_dim[down_grid_size * 0 + idx]));
+  //   printf("gpu length : %f \n", expf(out_dim[down_grid_size * 1 + idx]));
+  //   printf("gpu height : %f \n", expf(out_dim[down_grid_size * 2 + idx]));
+  // }
+
   const float offset_x = out_offset[down_grid_size * 0 + idx];
   const float offset_y = out_offset[down_grid_size * 1 + idx];
   const float x = voxel_size_x * downsample_factor * (xi + offset_x) + range_min_x;

@@ -18,6 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
+#include <stdexcept>
+#include <vector>
 
 namespace centerpoint
 {
@@ -37,37 +39,37 @@ struct Box3D
   float vel_x;
   float vel_y;
 
-  int operator-(Box3D& a)
+  std::vector<float> operator-(Box3D& a)
   {
-    int issue = 0;
+    std::vector<float> issue(11,0);
     if(label != a.label)
-      issue++;
-    if(std::fabs(score - a.score) > 0.001)
-      issue++;
-    if(std::fabs(x - a.x) > 0.001)
-      issue++;
-    if(std::fabs(y - a.y) > 0.001)
-      issue++;
-    if(std::fabs(z - a.z) > 0.001)
-      issue++;
-    if(std::fabs(length - a.length) > 0.001)
-      issue++;
-    if(std::fabs(width - a.width) > 0.001)
-      issue++;
-    if(std::fabs(height - a.height) > 0.001)
-      issue++;
-    if(std::fabs(yaw - a.yaw) > 0.001)
-      issue++;
-    if(std::fabs(vel_x - a.vel_x) > 0.001)
-      issue++;
-    if(std::fabs(vel_y - a.vel_y) > 0.001)
-      issue++;
+      issue[0]++;
+    if(std::fabs(score - a.score) > 0.01)
+      issue[1] = std::fabs(score - a.score);
+    if(std::fabs(x - a.x) > 0.01)
+      issue[2] = std::fabs(x - a.x);
+    if(std::fabs(y - a.y) > 0.01)
+      issue[3] = std::fabs(y - a.y);
+    if(std::fabs(z - a.z) > 0.01)
+      issue[4] = std::fabs(z - a.z);
+    if(std::fabs(length - a.length) > 0.01)
+      issue[5] = std::fabs(length - a.length);
+    if(std::fabs(width - a.width) > 0.01)
+      issue[6] = std::fabs(width - a.width);
+    if(std::fabs(height - a.height) > 0.01)
+      issue[7] = std::fabs(height - a.height);
+    if(std::fabs(yaw - a.yaw) > 0.01)
+      issue[8] = std::fabs(yaw - a.yaw);
+    if(std::fabs(vel_x - a.vel_x) > 0.01)
+      issue[9] = std::fabs(vel_x - a.vel_x);
+    if(std::fabs(vel_y - a.vel_y) > 0.01)
+      issue[10] = std::fabs(vel_y - a.vel_y);
     return issue;
   }
 };
 
 // cspell: ignore divup
-std::size_t divup(const std::size_t a, const std::size_t b)
+inline std::size_t divup(const std::size_t a, const std::size_t b)
 {
   if (a == 0) {
     throw std::runtime_error("A dividend of divup isn't positive.");

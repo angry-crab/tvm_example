@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "lidar_centerpoint_tvm/postprocess/generate_detected_boxes.hpp"
-
-#include <lidar_centerpoint_tvm/postprocess/circle_nms.hpp>
+#include "generate_detected_boxes.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <thread>
+#include <iostream>
 
 namespace
 {
 const std::size_t THREAD_NUM_POST = 32;
 }  // namespace
 
-namespace autoware
-{
-namespace perception
-{
-namespace lidar_centerpoint_tvm
+namespace centerpoint
 {
 
 struct is_score_greater
@@ -88,6 +83,16 @@ void generateBoxes3D_worker(
       }
     }
 
+    // if(xi == 1 && yi == 0) {
+    //   std::cout << "cpu grid idx : " << grid_idx << std::endl;
+    //   std::cout << "cpu w : " << out_dim[down_grid_size * 0 + grid_idx] << std::endl;
+    //   std::cout << "cpu l : " << out_dim[down_grid_size * 1 + grid_idx] << std::endl;
+    //   std::cout << "cpu h : " << out_dim[down_grid_size * 2 + grid_idx] << std::endl;
+    //   std::cout << "cpu width : " << expf(out_dim[down_grid_size * 0 + grid_idx]) << std::endl;
+    //   std::cout << "cpu length : " << expf(out_dim[down_grid_size * 1 + grid_idx]) << std::endl;
+    //   std::cout << "cpu height : " << expf(out_dim[down_grid_size * 2 + grid_idx]) << std::endl;
+    // }
+
     const float offset_x = out_offset[down_grid_size * 0 + grid_idx];
     const float offset_y = out_offset[down_grid_size * 1 + grid_idx];
     const float x =
@@ -105,7 +110,7 @@ void generateBoxes3D_worker(
     const float vel_y = out_vel[down_grid_size * 1 + grid_idx];
 
     boxes3d[grid_idx].label = label;
-    boxes3d[grid_idx].score = yaw_norm >= config.yaw_norm_threshold_ ? max_score : 0.f;
+    boxes3d[grid_idx].score = yaw_norm >= config.yaw_norm_thresholds_[label] ? max_score : 0.f;
     boxes3d[grid_idx].x = x;
     boxes3d[grid_idx].y = y;
     boxes3d[grid_idx].z = z;
@@ -175,5 +180,3 @@ void generateDetectedBoxes3D(
 }
 
 }  // namespace lidar_centerpoint_tvm
-}  // namespace perception
-}  // namespace autoware

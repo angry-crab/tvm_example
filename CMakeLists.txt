@@ -95,7 +95,7 @@ if(TRT_AVAIL AND CUDA_AVAIL AND CUDNN_AVAIL)
                 src/postprocess_kernel.cu
         )
         add_library(detectbox_cpp
-                generate_detected_boxes.cc
+                src/generate_detected_boxes.cc
         )
         add_executable(tensorrt_cpp_test
                 src/cpp_test_tensorrt.cc
