@@ -9,3 +9,5 @@ build
 *.log
 *.tsv
 *.zip
+python/coco-2017
+*.tar
